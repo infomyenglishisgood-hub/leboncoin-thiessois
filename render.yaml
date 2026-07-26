@@ -1,0 +1,37 @@
+# Configuration automatique pour Render.com
+#
+# Grace a ce fichier, vous n'avez RIEN a regler a la main sur Render :
+# le disque, les variables et les commandes sont deja decrits ici.
+#
+# Sur Render : New -> Blueprint -> choisissez votre depot GitHub.
+# Render lit ce fichier et cree le service tout seul.
+#
+# Attention : le plan "starter" est payant (environ 7 $/mois). C'est
+# necessaire, car le plan gratuit efface le disque a chaque redemarrage
+# et toutes les annonces seraient perdues.
+
+services:
+  - type: web
+    name: leboncoin-thiessois
+    runtime: node
+    plan: starter
+    region: frankfurt          # le centre le plus proche du Senegal
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeploy: true
+
+    disk:
+      name: donnees            # base de donnees + photos des annonces
+      mountPath: /data
+      sizeGB: 1                # environ 10 000 photos ; augmentable plus tard
+
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true    # Render invente une longue cle secrete
+      - key: NODE_VERSION
+        value: "22.11.0"
