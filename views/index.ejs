@@ -1,0 +1,88 @@
+<%- include('partials/header') %>
+
+<section class="hero">
+  <div class="wrap">
+    <h1><%= t('tagline') %></h1>
+    <form class="searchbar" method="get" action="/">
+      <input type="search" name="q" value="<%= filters.q %>" placeholder="<%= t('search_ph') %>" aria-label="<%= t('search') %>">
+      <select name="ville" aria-label="<%= t('city') %>">
+        <option value=""><%= t('all_cities') %></option>
+        <% cities.forEach(function (c) { %>
+          <option value="<%= c.slug %>" <%= filters.city === c.slug ? 'selected' : '' %>><%= c.name %></option>
+        <% }) %>
+      </select>
+      <input type="hidden" name="categorie" value="<%= filters.category %>">
+      <button class="btn btn-primary" type="submit"><%= t('search') %></button>
+    </form>
+  </div>
+</section>
+
+<div class="wrap">
+
+  <nav class="cat-strip" aria-label="<%= t('categories') %>">
+    <a class="cat <%= filters.category ? '' : 'on' %>"
+       href="/?<%= new URLSearchParams({ q: filters.q, ville: filters.city, tri: filters.sort }).toString() %>">
+      <%= t('all_categories') %>
+    </a>
+    <% categories.forEach(function (c) { %>
+      <a class="cat <%= filters.category === c.slug ? 'on' : '' %>"
+         href="/?<%= new URLSearchParams({ q: filters.q, ville: filters.city, tri: filters.sort, categorie: c.slug }).toString() %>">
+        <%= categoryLabel(c.slug) %><% if (counts[c.slug]) { %> <span class="cat-n"><%= counts[c.slug] %></span><% } %>
+      </a>
+    <% }) %>
+  </nav>
+
+  <div class="list-head">
+    <h2>
+      <% if (filters.q || filters.category || filters.city) { %>
+        <%= total %> <%= t('results_count') %>
+      <% } else { %>
+        <%= t('latest_ads') %>
+      <% } %>
+    </h2>
+
+    <form class="sortbar" method="get" action="/">
+      <input type="hidden" name="q" value="<%= filters.q %>">
+      <input type="hidden" name="categorie" value="<%= filters.category %>">
+      <input type="hidden" name="ville" value="<%= filters.city %>">
+      <label for="tri"><%= t('sort_by') %></label>
+      <select id="tri" name="tri" onchange="this.form.submit()">
+        <option value="recent"    <%= filters.sort === 'recent'    ? 'selected' : '' %>><%= t('sort_recent') %></option>
+        <option value="ancien"    <%= filters.sort === 'ancien'    ? 'selected' : '' %>><%= t('sort_old') %></option>
+        <option value="prix_asc"  <%= filters.sort === 'prix_asc'  ? 'selected' : '' %>><%= t('sort_price_asc') %></option>
+        <option value="prix_desc" <%= filters.sort === 'prix_desc' ? 'selected' : '' %>><%= t('sort_price_desc') %></option>
+      </select>
+      <noscript><button class="btn btn-ghost" type="submit"><%= t('filter') %></button></noscript>
+    </form>
+  </div>
+
+  <% if (listings.length === 0) { %>
+    <div class="empty">
+      <p class="empty-title"><%= t('no_results') %></p>
+      <p><%= t('no_results_hint') %></p>
+      <a class="btn btn-primary" href="/deposer"><%= t('post_ad') %></a>
+    </div>
+  <% } else { %>
+    <div class="grid">
+      <% listings.forEach(function (item) { %>
+        <%- include('partials/card', { item: item }) %>
+      <% }) %>
+    </div>
+  <% } %>
+
+  <% if (pages > 1) { %>
+    <%
+      const pageUrl = (p) => '/?' + new URLSearchParams({
+        q: filters.q, categorie: filters.category, ville: filters.city, tri: filters.sort, page: p
+      }).toString();
+    %>
+    <nav class="pager">
+      <% if (page > 1) { %><a class="btn btn-ghost" href="<%= pageUrl(page - 1) %>">&larr; <%= t('prev') %></a><% } %>
+      <span class="pager-info"><%= page %> / <%= pages %></span>
+      <% if (page < pages) { %><a class="btn btn-ghost" href="<%= pageUrl(page + 1) %>"><%= t('next') %> &rarr;</a><% } %>
+    </nav>
+  <% } %>
+
+</div>
+
+<%- include('partials/footer') %>

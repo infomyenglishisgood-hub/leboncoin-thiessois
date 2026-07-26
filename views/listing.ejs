@@ -1,0 +1,106 @@
+<%- include('partials/header') %>
+
+<div class="wrap">
+  <a class="backlink" href="/">&larr; <%= t('back') %></a>
+
+  <article class="detail">
+    <div class="detail-main">
+      <% if (images.length) { %>
+        <div class="gallery">
+          <img id="gallery-main" src="/photos/<%= images[0].filename %>" alt="<%= listing.title %>">
+          <% if (images.length > 1) { %>
+            <div class="thumbs">
+              <% images.forEach(function (img, i) { %>
+                <button type="button" class="thumb <%= i === 0 ? 'on' : '' %>" data-src="/photos/<%= img.filename %>">
+                  <img src="/photos/<%= img.filename %>" alt="" loading="lazy">
+                </button>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+      <% } else { %>
+        <div class="gallery gallery-empty">📷</div>
+      <% } %>
+
+      <div class="detail-head">
+        <h1><%= listing.title %></h1>
+        <p class="detail-price">
+          <% if (listing.price === null) { %>
+            <%= t('negotiable') %>
+          <% } else { %>
+            <%= formatPrice(listing.price) %><% if (listing.negotiable) { %> <span class="neg">·&nbsp;<%= t('negotiable') %></span><% } %>
+          <% } %>
+        </p>
+        <p class="detail-meta">
+          <span class="tag"><%= categoryLabel(listing.category) %></span>
+          <span class="tag"><%= cityLabel(listing.city) %></span>
+          <span class="tag"><%= listing.condition === 'neuf' ? t('new_item') : t('used_item') %></span>
+          <% if (listing.status === 'vendu') { %><span class="tag tag-sold"><%= t('sold') %></span><% } %>
+        </p>
+        <p class="detail-sub"><%= t('posted_on') %> <%= timeAgo(listing.created_at) %> · <%= listing.views %> <%= t('views') %></p>
+      </div>
+
+      <h2 class="section-title"><%= t('description') %></h2>
+      <div class="detail-desc"><%= listing.description %></div>
+
+      <form class="report" method="post" action="/annonce/<%= listing.id %>/signaler">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input type="text" name="reason" maxlength="300" placeholder="<%= t('report') %>...">
+        <button class="btn btn-ghost btn-sm" type="submit"><%= t('report') %></button>
+      </form>
+    </div>
+
+    <aside class="detail-side">
+      <div class="seller-box">
+        <h2><%= t('seller') %></h2>
+        <p class="seller-name"><%= listing.seller_name %></p>
+        <p class="seller-meta"><%= cityLabel(listing.seller_city) %> · <%= t('member_since') %> <%= listing.seller_since.slice(0, 7) %></p>
+
+        <% if (user && user.id === listing.user_id) { %>
+          <a class="btn btn-block btn-primary" href="/annonce/<%= listing.id %>/modifier"><%= t('edit') %></a>
+          <form method="post" action="/annonce/<%= listing.id %>/statut">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <button class="btn btn-block btn-ghost" type="submit">
+              <%= listing.status === 'active' ? t('mark_sold') : t('mark_active') %>
+            </button>
+          </form>
+          <form method="post" action="/annonce/<%= listing.id %>/supprimer"
+                onsubmit="return confirm('<%= t('confirm_delete') %>')">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <button class="btn btn-block btn-danger" type="submit"><%= t('delete') %></button>
+          </form>
+        <% } else { %>
+          <p class="contact-label"><%= t('contact_seller') %></p>
+          <a class="btn btn-block btn-primary" href="tel:+<%= listing.seller_phone %>">
+            📞 <%= t('call') %> <%= displayPhone(listing.seller_phone) %>
+          </a>
+          <a class="btn btn-block btn-whatsapp" target="_blank" rel="noopener"
+             href="<%= whatsappLink(listing.seller_whatsapp || listing.seller_phone, 'Bonjour, votre annonce "' + listing.title + '" est-elle toujours disponible ?') %>">
+            💬 <%= t('whatsapp') %>
+          </a>
+        <% } %>
+      </div>
+
+      <div class="safety-box">
+        <h3><%= t('safety_title') %></h3>
+        <ul>
+          <li><%= t('safety_1') %></li>
+          <li><%= t('safety_2') %></li>
+          <li><%= t('safety_3') %></li>
+          <li><%= t('safety_4') %></li>
+        </ul>
+      </div>
+    </aside>
+  </article>
+
+  <% if (similar.length) { %>
+    <h2 class="section-title"><%= t('similar_ads') %></h2>
+    <div class="grid">
+      <% similar.forEach(function (item) { %>
+        <%- include('partials/card', { item: item }) %>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+
+<%- include('partials/footer') %>

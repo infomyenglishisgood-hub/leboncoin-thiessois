@@ -1,0 +1,55 @@
+<%- include('partials/header') %>
+
+<div class="wrap narrow">
+  <h1 class="page-title"><%= t('signup') %></h1>
+  <% if (typeof error !== 'undefined' && error) { %><div class="flash flash-error"><%= error %></div><% } %>
+
+  <form class="form" method="post" action="/inscription">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+
+    <label class="field">
+      <span class="label"><%= t('name') %> <em><%= t('required') %></em></span>
+      <input type="text" name="name" maxlength="80" required autocomplete="name" value="<%= form.name || '' %>">
+    </label>
+
+    <label class="field">
+      <span class="label"><%= t('phone') %> <em><%= t('required') %></em></span>
+      <input type="tel" name="phone" required autocomplete="tel" placeholder="77 123 45 67" value="<%= form.phone || '' %>">
+      <small class="hint"><%= t('phone_hint') %></small>
+    </label>
+
+    <label class="field">
+      <span class="label"><%= t('whatsapp_number') %> <em><%= t('optional') %></em></span>
+      <input type="tel" name="whatsapp" placeholder="77 123 45 67" value="<%= form.whatsapp || '' %>">
+      <small class="hint"><%= t('whatsapp_hint') %></small>
+    </label>
+
+    <label class="field">
+      <span class="label"><%= t('city') %></span>
+      <select name="city">
+        <% cities.forEach(function (c) { %>
+          <option value="<%= c.slug %>" <%= form.city === c.slug ? 'selected' : '' %>><%= c.name %></option>
+        <% }) %>
+      </select>
+    </label>
+
+    <div class="field-row">
+      <label class="field">
+        <span class="label"><%= t('password') %></span>
+        <input type="password" name="password" required minlength="6" autocomplete="new-password">
+        <small class="hint"><%= t('password_hint') %></small>
+      </label>
+      <label class="field">
+        <span class="label"><%= t('password2') %></span>
+        <input type="password" name="password2" required minlength="6" autocomplete="new-password">
+      </label>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-primary btn-lg" type="submit"><%= t('create_account') %></button>
+      <a class="btn btn-ghost" href="/connexion"><%= t('have_account') %></a>
+    </div>
+  </form>
+</div>
+
+<%- include('partials/footer') %>

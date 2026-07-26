@@ -1,0 +1,88 @@
+<%- include('partials/header') %>
+
+<div class="wrap narrow">
+  <h1 class="page-title"><%= title %></h1>
+  <% if (typeof error !== 'undefined' && error) { %><div class="flash flash-error"><%= error %></div><% } %>
+
+  <form class="form" method="post" action="<%= action %>" enctype="multipart/form-data">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+
+    <label class="field">
+      <span class="label"><%= t('title') %> <em><%= t('required') %></em></span>
+      <input type="text" name="title" maxlength="100" required
+             placeholder="<%= t('title_ph') %>" value="<%= listing ? listing.title : '' %>">
+    </label>
+
+    <label class="field">
+      <span class="label"><%= t('category') %> <em><%= t('required') %></em></span>
+      <select name="category" required>
+        <option value=""><%= t('all_categories') %></option>
+        <% categories.forEach(function (c) { %>
+          <option value="<%= c.slug %>" <%= listing && listing.category === c.slug ? 'selected' : '' %>><%= categoryLabel(c.slug) %></option>
+        <% }) %>
+      </select>
+    </label>
+
+    <div class="field-row">
+      <label class="field">
+        <span class="label"><%= t('price') %> (FCFA) <em><%= t('optional') %></em></span>
+        <input type="text" inputmode="numeric" name="price" placeholder="<%= t('price_ph') %>"
+               value="<%= listing && listing.price !== null && listing.price !== undefined ? listing.price : '' %>">
+      </label>
+      <label class="field">
+        <span class="label"><%= t('condition') %></span>
+        <select name="condition">
+          <option value="occasion" <%= !listing || listing.condition !== 'neuf' ? 'selected' : '' %>><%= t('used_item') %></option>
+          <option value="neuf"     <%= listing && listing.condition === 'neuf' ? 'selected' : '' %>><%= t('new_item') %></option>
+        </select>
+      </label>
+    </div>
+
+    <label class="check">
+      <input type="checkbox" name="negotiable" value="1" <%= listing && listing.negotiable ? 'checked' : '' %>>
+      <span><%= t('negotiable') %></span>
+    </label>
+
+    <label class="field">
+      <span class="label"><%= t('city') %></span>
+      <select name="city">
+        <% cities.forEach(function (c) { %>
+          <option value="<%= c.slug %>"
+            <%= (listing ? listing.city === c.slug : user.city === c.slug) ? 'selected' : '' %>><%= c.name %></option>
+        <% }) %>
+      </select>
+    </label>
+
+    <label class="field">
+      <span class="label"><%= t('description') %> <em><%= t('required') %></em></span>
+      <textarea name="description" rows="7" maxlength="4000" required placeholder="<%= t('desc_ph') %>"><%= listing ? listing.description : '' %></textarea>
+    </label>
+
+    <% if (images && images.length) { %>
+      <div class="field">
+        <span class="label"><%= t('current_photos') %></span>
+        <div class="photo-edit">
+          <% images.forEach(function (img) { %>
+            <label class="photo-old">
+              <img src="/photos/<%= img.filename %>" alt="">
+              <span><input type="checkbox" name="remove_image" value="<%= img.id %>"> <%= t('remove_photo') %></span>
+            </label>
+          <% }) %>
+        </div>
+      </div>
+    <% } %>
+
+    <label class="field">
+      <span class="label"><%= t('photos') %> <em><%= t('optional') %></em></span>
+      <input type="file" name="photos" accept="image/jpeg,image/png,image/webp" multiple>
+      <small class="hint"><%= t('photos_hint') %></small>
+    </label>
+
+    <div class="form-actions">
+      <button class="btn btn-primary btn-lg" type="submit"><%= t('publish') %></button>
+      <a class="btn btn-ghost" href="<%= listing && listing.id ? '/annonce/' + listing.id : '/' %>"><%= t('cancel') %></a>
+    </div>
+  </form>
+</div>
+
+<%- include('partials/footer') %>

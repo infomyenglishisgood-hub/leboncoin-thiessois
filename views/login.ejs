@@ -1,0 +1,28 @@
+<%- include('partials/header') %>
+
+<div class="wrap narrow">
+  <h1 class="page-title"><%= t('login') %></h1>
+  <% if (typeof error !== 'undefined' && error) { %><div class="flash flash-error"><%= error %></div><% } %>
+
+  <form class="form" method="post" action="/connexion">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <input type="hidden" name="suite" value="<%= query.suite || '' %>">
+
+    <label class="field">
+      <span class="label"><%= t('phone') %></span>
+      <input type="tel" name="phone" required autocomplete="tel" placeholder="77 123 45 67" value="<%= form.phone || '' %>">
+    </label>
+
+    <label class="field">
+      <span class="label"><%= t('password') %></span>
+      <input type="password" name="password" required autocomplete="current-password">
+    </label>
+
+    <div class="form-actions">
+      <button class="btn btn-primary btn-lg" type="submit"><%= t('login') %></button>
+      <a class="btn btn-ghost" href="/inscription"><%= t('no_account') %> <%= t('signup') %></a>
+    </div>
+  </form>
+</div>
+
+<%- include('partials/footer') %>
