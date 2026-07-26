@@ -1,0 +1,22 @@
+<a class="card" href="/annonce/<%= item.id %>">
+  <div class="card-media">
+    <% if (item.cover) { %>
+      <img src="/photos/<%= item.cover %>" alt="<%= item.title %>" loading="lazy" width="300" height="220">
+    <% } else { %>
+      <div class="card-noimg" aria-hidden="true">📷</div>
+    <% } %>
+    <% if (item.status === 'vendu') { %><span class="badge badge-sold"><%= t('sold') %></span><% } %>
+    <% if (item.condition === 'neuf') { %><span class="badge badge-new"><%= t('new_item') %></span><% } %>
+  </div>
+  <div class="card-body">
+    <p class="card-price">
+      <% if (item.price === null) { %>
+        <%= t('negotiable') %>
+      <% } else { %>
+        <%= formatPrice(item.price) %><% if (item.negotiable) { %> <span class="neg">·&nbsp;<%= t('negotiable') %></span><% } %>
+      <% } %>
+    </p>
+    <h3 class="card-title"><%= item.title %></h3>
+    <p class="card-meta"><%= cityLabel(item.city) %> · <%= timeAgo(item.created_at) %></p>
+  </div>
+</a>

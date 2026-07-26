@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="<%= locale %>">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= title %> | <%= t('site_name') %></title>
+<meta name="description" content="<%= t('tagline') %> - Thies, Mbour, Tivaouane et tout le Senegal.">
+<meta name="theme-color" content="#0b7a4b">
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="logo" href="/">
+      <span class="logo-mark">LBC</span>
+      <span class="logo-text">
+        <strong><%= t('site_name') %></strong>
+        <small><%= t('tagline') %></small>
+      </span>
+    </a>
+
+    <nav class="header-nav">
+      <div class="lang-switch">
+        <% for (const l of Object.keys(localeNames)) { %>
+          <a class="<%= locale === l ? 'on' : '' %>" href="?lang=<%= l %>"><%= l.toUpperCase() %></a>
+        <% } %>
+      </div>
+      <% if (user) { %>
+        <a class="btn btn-ghost hide-xs" href="/mes-annonces"><%= t('my_ads') %></a>
+        <form method="post" action="/deconnexion" class="inline">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <button class="btn btn-ghost" type="submit"><%= t('logout') %></button>
+        </form>
+      <% } else { %>
+        <a class="btn btn-ghost" href="/connexion"><%= t('login') %></a>
+      <% } %>
+      <a class="btn btn-primary" href="/deposer">+ <span class="hide-xs"><%= t('post_ad') %></span><span class="only-xs"><%= t('publish') %></span></a>
+    </nav>
+  </div>
+</header>
+
+<% if (typeof flash !== 'undefined' && flash) { %>
+  <div class="wrap"><div class="flash flash-<%= flash.type %>"><%= flash.text %></div></div>
+<% } %>

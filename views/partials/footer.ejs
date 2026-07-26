@@ -1,0 +1,28 @@
+<footer class="site-footer">
+  <div class="wrap footer-grid">
+    <div>
+      <strong><%= t('site_name') %></strong>
+      <p><%= t('footer_note') %></p>
+    </div>
+    <div>
+      <strong><%= t('categories') %></strong>
+      <ul class="footer-links">
+        <% categories.slice(0, 6).forEach(function (c) { %>
+          <li><a href="/?categorie=<%= c.slug %>"><%= categoryLabel(c.slug) %></a></li>
+        <% }) %>
+      </ul>
+    </div>
+    <div>
+      <strong><%= t('safety_title') %></strong>
+      <ul class="footer-links">
+        <li><a href="/securite"><%= t('safety_title') %></a></li>
+        <li><a href="https://www.facebook.com/groups/leboncointhiessois" target="_blank" rel="noopener">Groupe Facebook</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap footer-bottom">&copy; <%= new Date().getFullYear() %> <%= t('site_name') %> - Thies, Senegal</div>
+</footer>
+
+<script src="/static/js/app.js" defer></script>
+</body>
+</html>
