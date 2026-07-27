@@ -41,6 +41,13 @@ async function req(pathname, options = {}) {
 }
 
 const csrfOf = (html) => (html.match(/name="_csrf" value="([^"]+)"/) || [])[1];
+const devCodeOf = (html) => (html.match(/class="dev-code">(\d{6})</) || [])[1];
+
+const urlencoded = (obj) => ({
+  method: 'POST',
+  body: new URLSearchParams(obj),
+  headers: { 'content-type': 'application/x-www-form-urlencoded' },
+});
 
 /** Un PNG rouge 2x2 valide, suffisant pour tester l'upload. */
 const pngBytes = Buffer.from(
@@ -92,6 +99,41 @@ const pngBytes = Buffer.from(
     cookie = jar;
   });
 
+  await check('un numero non verifie ne peut pas deposer d annonce', async () => {
+    const r = await req('/deposer');
+    assert.equal(r.status, 302);
+    assert.equal(r.location, '/verification');
+  });
+
+  await check('un mauvais code est refuse', async () => {
+    const page = await req('/verification');
+    await req('/verification/envoyer', urlencoded({ _csrf: csrfOf(page.body) }));
+    const withCode = await req('/verification');
+    const realCode = devCodeOf(withCode.body);
+    const wrong = realCode === '000000' ? '111111' : '000000';
+    const r = await req('/verification', urlencoded({ _csrf: csrfOf(withCode.body), code: wrong }));
+    assert.equal(r.status, 400);
+    assert.ok(r.body.includes('Code incorrect'));
+    assert.ok(r.body.includes('essai'), 'le nombre d essais restants est affiche');
+  });
+
+  await check('un nouveau code ne peut pas etre demande immediatement', async () => {
+    const page = await req('/verification');
+    const r = await req('/verification/envoyer', urlencoded({ _csrf: csrfOf(page.body) }));
+    assert.equal(r.status, 429, 'le renvoi immediat doit etre bloque (cout des SMS)');
+    assert.ok(r.body.includes('Patientez'));
+  });
+
+  await check('le bon code verifie le numero', async () => {
+    // Le code precedent est toujours valable : on le relit et on le saisit.
+    const page = await req('/verification');
+    const code = devCodeOf(page.body);
+    const r = await req('/verification', urlencoded({ _csrf: csrfOf(page.body), code }));
+    assert.equal(r.status, 302);
+    assert.equal(r.location, '/deposer');
+    assert.equal((await req('/deposer')).status, 200, 'le depot est desormais accessible');
+  });
+
   let listingId;
   await check('depot d une annonce avec photo', async () => {
     const page = await req('/deposer');
@@ -123,6 +165,44 @@ const pngBytes = Buffer.from(
     assert.equal(r.status, 200);
     assert.ok(r.body.includes('Refrigerateur Samsung'));
     assert.ok(r.body.includes('75 000 FCFA'), 'prix formate en FCFA');
+  });
+
+  await check('le badge "numero verifie" apparait sur l annonce', async () => {
+    const r = await req(`/annonce/${listingId}`);
+    assert.ok(r.body.includes('Numero verifie'));
+  });
+
+  await check('le code de test reste cache en production', async () => {
+    const smsModule = require('../lib/sms');
+    const before = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    assert.equal(smsModule.testModeAvailable(), false, 'jamais de code a l ecran en production');
+    process.env.NODE_ENV = before;
+    assert.equal(smsModule.testModeAvailable(), true);
+  });
+
+  await check('sans fournisseur SMS en ligne, le site reste utilisable', async () => {
+    // Repli de securite : mieux vaut un site sans verification qu'un site
+    // ou plus personne ne peut publier.
+    const smsModule = require('../lib/sms');
+    const before = process.env.NODE_ENV;
+
+    process.env.NODE_ENV = 'production';
+    assert.equal(smsModule.verificationPossible(), false, 'aucun SMS possible sans Twilio');
+
+    process.env.SMS_PROVIDER = 'twilio';
+    assert.equal(smsModule.verificationPossible(), false, 'Twilio sans cles = inutilisable');
+
+    process.env.TWILIO_ACCOUNT_SID = 'ACtest';
+    process.env.TWILIO_AUTH_TOKEN = 'token';
+    process.env.TWILIO_FROM = '+15550000000';
+    assert.equal(smsModule.verificationPossible(), true, 'Twilio complet = verification active');
+
+    delete process.env.SMS_PROVIDER;
+    delete process.env.TWILIO_ACCOUNT_SID;
+    delete process.env.TWILIO_AUTH_TOKEN;
+    delete process.env.TWILIO_FROM;
+    process.env.NODE_ENV = before;
   });
 
   await check("l'annonce apparait sur l'accueil", async () => {
@@ -261,6 +341,60 @@ const pngBytes = Buffer.from(
     assert.equal((await req(`/annonce/${listingId}`)).status, 404);
     await new Promise((r2) => setTimeout(r2, 120));
     assert.equal(fs.readdirSync(path.join(tmp, 'uploads')).length, 0, 'la photo est effacee du disque');
+  });
+
+  await check('pas plus de 3 SMS par heure et par numero', async () => {
+    // Protection du portefeuille : sans cela, quelqu'un pourrait demander des
+    // milliers de SMS et vider le credit Twilio.
+    const { db } = require('../lib/db');
+    const v = require('../lib/verification');
+    const phone = '221781111111';
+
+    db.prepare('DELETE FROM otp_codes WHERE phone = ?').run(phone);
+    const rewind = () =>
+      db.prepare('UPDATE otp_codes SET last_sent_at = last_sent_at - 120000 WHERE phone = ?').run(phone);
+
+    assert.equal((await v.requestCode(phone)).ok, true, '1er envoi accepte');
+    rewind();
+    assert.equal((await v.requestCode(phone)).ok, true, '2e envoi accepte');
+    rewind();
+    assert.equal((await v.requestCode(phone)).ok, true, '3e envoi accepte');
+    rewind();
+
+    const fourth = await v.requestCode(phone);
+    assert.equal(fourth.ok, false, '4e envoi bloque');
+    assert.equal(fourth.error, 'err_otp_too_many_sends');
+  });
+
+  await check('5 mauvais essais invalident le code', async () => {
+    const { db } = require('../lib/db');
+    const v = require('../lib/verification');
+    const phone = '221782222222';
+
+    db.prepare('DELETE FROM otp_codes WHERE phone = ?').run(phone);
+    await v.requestCode(phone);
+
+    for (let i = 0; i < 5; i++) {
+      const r = await v.checkCode(phone, '000001');
+      assert.equal(r.ok, false);
+    }
+    const after = await v.checkCode(phone, '000001');
+    assert.equal(after.error, 'err_otp_too_many_tries');
+    assert.equal(db.prepare('SELECT * FROM otp_codes WHERE phone = ?').get(phone), undefined,
+      'le code est efface apres trop d essais');
+  });
+
+  await check('un code expire est refuse', async () => {
+    const { db } = require('../lib/db');
+    const v = require('../lib/verification');
+    const phone = '221783333333';
+
+    db.prepare('DELETE FROM otp_codes WHERE phone = ?').run(phone);
+    await v.requestCode(phone);
+    db.prepare('UPDATE otp_codes SET expires_at = ? WHERE phone = ?').run(Date.now() - 1000, phone);
+
+    const r = await v.checkCode(phone, '123456');
+    assert.equal(r.error, 'err_otp_expired');
   });
 
   await check('page inconnue -> 404', async () => {
