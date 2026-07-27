@@ -35,7 +35,7 @@ ce qui vous gêne, et ne payez un hébergement qu'une fois convaincu.
 npm install        # à faire une seule fois
 npm run seed       # optionnel : ajoute 12 annonces d'exemple
 npm start          # puis ouvrez http://localhost:3000
-npm test           # vérifie que tout fonctionne (20 tests)
+npm test           # vérifie que tout fonctionne (30 tests)
 ```
 
 ---
@@ -79,7 +79,71 @@ votre hébergeur. Le certificat HTTPS est automatique et gratuit.
 
 ---
 
-## 3. Sauvegarder les données
+## 3. Vérification du numéro par SMS
+
+Pour **déposer une annonce**, un membre doit prouver qu'il contrôle bien son
+numéro : il reçoit un code à 6 chiffres par SMS. Naviguer et chercher restent
+libres — seule la publication est protégée, ce qui limite fortement le nombre
+de SMS envoyés (donc le coût).
+
+### En local : rien à configurer
+
+Aucun SMS n'est envoyé et le code s'affiche directement à l'écran. Ce mode test
+est **automatiquement désactivé** quand `NODE_ENV=production`, sinon n'importe
+qui pourrait valider n'importe quel numéro.
+
+### En ligne : brancher Twilio
+
+1. Créez un compte sur twilio.com et achetez un numéro d'envoi.
+2. Chez votre hébergeur, ajoutez ces variables :
+
+   | Nom | Valeur |
+   |---|---|
+   | `SMS_PROVIDER` | `twilio` |
+   | `TWILIO_ACCOUNT_SID` | `AC...` (tableau de bord Twilio) |
+   | `TWILIO_AUTH_TOKEN` | votre jeton Twilio |
+   | `TWILIO_FROM` | `+1...` votre numéro Twilio |
+
+Comptez environ **30 à 50 FCFA par SMS**, à vérifier sur la grille tarifaire
+Twilio pour le Sénégal. C'est un coût par nouveau membre, pas par annonce.
+
+### Tant que Twilio n'est pas branché
+
+Le site **reste utilisable** : les annonces peuvent être publiées sans numéro
+vérifié, et le serveur affiche un avertissement au démarrage. La vérification
+s'active toute seule dès que vous renseignez les clés Twilio — rien à modifier
+dans le code.
+
+Bloquer la publication alors que personne ne peut recevoir de code rendrait le
+site inutilisable ; c'est pourquoi ce repli existe. Si vous préférez malgré tout
+bloquer dans tous les cas, ajoutez la variable `REQUIRE_VERIFICATION=always`.
+
+### Protections contre les abus
+
+Sans ces limites, quelqu'un pourrait demander des milliers de SMS et vider
+votre crédit :
+
+- 60 secondes minimum entre deux demandes de code
+- 3 codes maximum par heure et par numéro
+- code valable 10 minutes, 5 essais maximum
+- le code n'est jamais stocké en clair dans la base
+
+### Si le SMS n'arrive pas
+
+```bash
+npm run verifier                        # liste les comptes en attente
+npm run verifier -- 77 123 45 67        # valide le numéro à la main
+npm run verifier -- 77 123 45 67 annuler
+```
+
+> **Un numéro vérifié n'est pas une garantie d'honnêteté.** Les cartes SIM sont
+> bon marché : un escroc déterminé peut en acheter une. La vérification élève
+> nettement la barrière et rend les récidives plus difficiles, mais les conseils
+> de sécurité restent indispensables.
+
+---
+
+## 4. Sauvegarder les données
 
 ```bash
 npm run backup
@@ -96,7 +160,7 @@ annonces) et `uploads/` (les photos).
 
 ---
 
-## 4. Modifier les textes, les catégories et les villes
+## 5. Modifier les textes, les catégories et les villes
 
 Tout est regroupé dans un seul fichier : **`lib/i18n.js`**.
 
@@ -112,7 +176,7 @@ principales sont tout en haut du fichier).
 
 ---
 
-## 5. Devenir administrateur
+## 6. Devenir administrateur
 
 Un administrateur peut modifier et supprimer **n'importe quelle** annonce, ce qui est
 indispensable contre les arnaques. Inscrivez-vous d'abord normalement sur le site,
@@ -132,7 +196,7 @@ npm run reports
 
 ---
 
-## 6. Lancer le site auprès du groupe Facebook
+## 7. Lancer le site auprès du groupe Facebook
 
 Quelques conseils pour que le site prenne vraiment :
 
@@ -160,12 +224,15 @@ lib/i18n.js                >>> Tous les textes FR / WO, catégories, villes <<<
 lib/db.js                  Base de données et recherche
 lib/helpers.js             Format des prix, des numéros, des dates
 lib/session-store.js       Sessions (rester connecté)
+lib/sms.js                 Envoi des SMS (mode test ou Twilio)
+lib/verification.js        Codes de vérification et limites anti-abus
 views/                     Les pages HTML
 public/css/style.css       Le design (couleurs en haut du fichier)
 public/js/app.js           Galerie photo + réduction des images avant envoi
 
 scripts/seed.js            Annonces de démonstration
 scripts/admin.js           Gestion des administrateurs
+scripts/verifier.js        Validation manuelle d'un numéro
 scripts/backup.js          Sauvegarde
 scripts/reports.js         Annonces signalées
 test/smoke.js              Tests automatiques
@@ -180,10 +247,11 @@ data/                      Base de données et photos (à sauvegarder)
 | Commande | Effet |
 |---|---|
 | `npm start` | Démarre le site |
-| `npm test` | Vérifie que tout fonctionne (20 tests) |
+| `npm test` | Vérifie que tout fonctionne (30 tests) |
 | `npm run seed` | Ajoute 12 annonces d'exemple |
 | `npm run backup` | Sauvegarde comptes, annonces et photos |
 | `npm run admin -- 77 123 45 67` | Donne les droits d'administrateur |
+| `npm run verifier -- 77 123 45 67` | Valide un numéro à la main |
 | `npm run reports` | Affiche les annonces signalées |
 
 ## Points techniques
@@ -192,4 +260,5 @@ data/                      Base de données et photos (à sauvegarder)
 - Mots de passe chiffrés avec bcrypt, protection CSRF sur tous les formulaires,
   requêtes SQL paramétrées, échappement HTML systématique, limitation des tentatives
   de connexion (5 essais par 10 minutes).
+- Codes de vérification hachés (bcrypt), expiration 10 min, 5 essais, 3 envois/heure.
 - Photos : 5 maximum par annonce, JPG/PNG/WEBP, réduites à 1600 px côté navigateur.

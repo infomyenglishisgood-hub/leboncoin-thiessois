@@ -9,6 +9,7 @@
     "dev": "node --watch server.js",
     "seed": "node scripts/seed.js",
     "admin": "node scripts/admin.js",
+    "verifier": "node scripts/verifier.js",
     "backup": "node scripts/backup.js",
     "reports": "node scripts/reports.js",
     "test": "node test/smoke.js"

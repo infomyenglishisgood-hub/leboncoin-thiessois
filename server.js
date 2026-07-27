@@ -14,6 +14,8 @@ const { db, searchListings, getListing, getImages, listingsByUser, categoryCount
 const SqliteStore = require('./lib/session-store');
 const i18n = require('./lib/i18n');
 const H = require('./lib/helpers');
+const sms = require('./lib/sms');
+const verification = require('./lib/verification');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -63,7 +65,9 @@ app.use((req, res, next) => {
   const locale = req.session.locale || 'fr';
 
   const user = req.session.userId
-    ? db.prepare('SELECT id, name, phone, whatsapp, city, is_admin FROM users WHERE id = ?').get(req.session.userId)
+    ? db.prepare(
+        'SELECT id, name, phone, whatsapp, city, is_admin, phone_verified FROM users WHERE id = ?'
+      ).get(req.session.userId)
     : null;
   req.user = user;
 
@@ -89,6 +93,7 @@ app.use((req, res, next) => {
     query: req.query,
     path: req.path,
     localeNames: i18n.LOCALE_NAMES,
+    devCode: req.session.devCode || null, // mode test hors production uniquement
   });
   next();
 });
@@ -114,6 +119,28 @@ const requireLogin = (req, res, next) => {
   if (req.user) return next();
   setFlash(req, 'error', 'err_login_first');
   res.redirect(`/connexion?suite=${encodeURIComponent(req.originalUrl)}`);
+};
+
+/**
+ * Le numero doit etre verifie pour deposer une annonce.
+ * On laisse volontairement la navigation libre : seule la publication
+ * demande une verification, ce qui limite fortement le nombre de SMS.
+ *
+ * REPLI DE SECURITE : si aucun envoi de SMS n'est possible (Twilio pas
+ * encore configure en ligne), on laisse publier malgre tout. Bloquer tout
+ * le monde alors que personne ne peut recevoir de code rendrait le site
+ * inutilisable. La verification s'active toute seule des que les cles
+ * Twilio sont renseignees.
+ * Pour exiger la verification en toutes circonstances : REQUIRE_VERIFICATION=always
+ */
+const verificationEnforced = () =>
+  sms.verificationPossible() || process.env.REQUIRE_VERIFICATION === 'always';
+
+const requireVerified = (req, res, next) => {
+  if (req.user?.phone_verified || req.user?.is_admin) return next();
+  if (!verificationEnforced()) return next();
+  setFlash(req, 'error', 'verify_needed');
+  res.redirect('/verification');
 };
 
 /* ------------------------------------------------------------------ */
@@ -279,10 +306,72 @@ app.get('/mes-annonces', requireLogin, (req, res) =>
   res.render('dashboard', { title: res.locals.t('my_ads'), listings: listingsByUser(req.user.id) }));
 
 /* ------------------------------------------------------------------ */
+/* Verification du numero par SMS                                      */
+/* ------------------------------------------------------------------ */
+
+const renderVerification = (req, res, extra = {}) =>
+  res.render('verify', {
+    title: res.locals.t('verify_title'),
+    codeSent: Boolean(req.session.otpSentAt),
+    testMode: sms.testModeAvailable(),
+    ...extra,
+  });
+
+app.get('/verification', requireLogin, (req, res) => {
+  if (req.user.phone_verified) return res.redirect('/deposer');
+  renderVerification(req, res);
+});
+
+app.post('/verification/envoyer', requireLogin, async (req, res) => {
+  if (req.user.phone_verified) return res.redirect('/deposer');
+
+  const result = await verification.requestCode(req.user.phone, res.locals.locale);
+
+  if (!result.ok) {
+    const base = res.locals.t(result.error);
+    return res.status(429).render('verify', {
+      title: res.locals.t('verify_title'),
+      codeSent: Boolean(req.session.otpSentAt),
+      testMode: sms.testModeAvailable(),
+      error: result.wait ? `${base} (${result.wait}s)` : base,
+    });
+  }
+
+  req.session.otpSentAt = Date.now();
+  // En mode test uniquement, le code s'affiche a l'ecran (aucun SMS reel).
+  req.session.devCode = result.devCode || null;
+  res.redirect('/verification');
+});
+
+app.post('/verification', requireLogin, async (req, res) => {
+  if (req.user.phone_verified) return res.redirect('/deposer');
+
+  const result = await verification.checkCode(req.user.phone, req.body.code);
+
+  if (!result.ok) {
+    let error = res.locals.t(result.error);
+    if (result.error === 'err_otp_wrong' && result.left > 0) {
+      error += ` ${result.left} ${res.locals.t('err_otp_tries_left')}.`;
+    }
+    return res.status(400).render('verify', {
+      title: res.locals.t('verify_title'),
+      codeSent: true,
+      testMode: sms.testModeAvailable(),
+      error,
+    });
+  }
+
+  delete req.session.otpSentAt;
+  delete req.session.devCode;
+  setFlash(req, 'ok', 'verify_ok');
+  res.redirect('/deposer');
+});
+
+/* ------------------------------------------------------------------ */
 /* Deposer / modifier une annonce                                      */
 /* ------------------------------------------------------------------ */
 
-app.get('/deposer', requireLogin, (req, res) =>
+app.get('/deposer', requireLogin, requireVerified, (req, res) =>
   res.render('form', { title: res.locals.t('new_ad'), listing: null, images: [], action: '/deposer' }));
 
 /** Valide et nettoie les champs du formulaire d'annonce. */
@@ -299,7 +388,7 @@ function readListingForm(body, userCity) {
   };
 }
 
-app.post('/deposer', requireLogin, photosUpload, checkCsrf, (req, res) => {
+app.post('/deposer', requireLogin, requireVerified, photosUpload, checkCsrf, (req, res) => {
   const data = readListingForm(req.body, req.user.city);
 
   if (!data.title || !data.description || !data.category) {
@@ -410,7 +499,18 @@ app.use((err, req, res, next) => {
 });
 
 if (require.main === module) {
-  app.listen(PORT, () => console.log(`Le Bon Coin Thiessois -> http://localhost:${PORT}`));
+  app.listen(PORT, () => {
+    console.log(`Le Bon Coin Thiessois -> http://localhost:${PORT}`);
+
+    if (!sms.verificationPossible()) {
+      console.warn(
+        '\n  ATTENTION : la verification par SMS est inactive.\n' +
+        '  Les annonces peuvent etre publiees sans numero verifie.\n' +
+        '  Pour l activer : SMS_PROVIDER=twilio + TWILIO_ACCOUNT_SID,\n' +
+        '  TWILIO_AUTH_TOKEN et TWILIO_FROM.\n'
+      );
+    }
+  });
 }
 
 module.exports = app;

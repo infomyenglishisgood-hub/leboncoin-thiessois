@@ -35,3 +35,17 @@ services:
         generateValue: true    # Render invente une longue cle secrete
       - key: NODE_VERSION
         value: "22.11.0"
+
+      # --- Verification du numero par SMS ---
+      # Tant que ces variables ne sont pas remplies, la verification par SMS
+      # est impossible en production (le site refuse d'afficher le code a
+      # l'ecran, sinon n'importe qui pourrait valider n'importe quel numero).
+      # Renseignez-les dans l'onglet Environment de Render.
+      - key: SMS_PROVIDER
+        value: twilio
+      - key: TWILIO_ACCOUNT_SID
+        sync: false          # a saisir dans Render, jamais dans ce fichier
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM
+        sync: false
