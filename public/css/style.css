@@ -197,6 +197,28 @@ h1, h2, h3 { line-height: 1.25; margin: 0 0 .5rem; }
 .status-active { color: var(--green); }
 .status-vendu { color: var(--red); }
 
+/* ---------- Verification du numero ---------- */
+.verify-why { color: var(--muted); font-size: .93rem; margin: 0 0 1rem; }
+.verify-number {
+  display: flex; align-items: center; gap: .5rem; font-size: 1.15rem;
+  background: #f2f6f4; border-radius: 10px; padding: .7rem .9rem; margin: 0 0 1.1rem;
+}
+.verify-icon { font-size: 1.3rem; }
+.verify-sent { font-size: .93rem; margin: 0 0 .9rem; }
+.verify-help { margin: .7rem 0 1rem; }
+.verify-later { text-align: center; margin: 1rem 0 0; font-size: .9rem; }
+.code-input {
+  font-size: 1.7rem !important; letter-spacing: .45em; text-align: center;
+  font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.dev-code { font-size: 1.2rem; letter-spacing: .2em; }
+.verified {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%; background: var(--green);
+  color: #fff; font-size: .72rem; font-weight: 700; vertical-align: middle;
+}
+.verified-line { margin: .15rem 0 0; font-size: .82rem; color: var(--green); font-weight: 600; }
+
 /* ---------- Messages ---------- */
 .flash { padding: .7rem .9rem; border-radius: 10px; margin: .8rem 0; font-size: .93rem; font-weight: 500; }
 .flash-ok    { background: #e7f6ee; color: #0b5b39; border: 1px solid #b9e5cd; }
