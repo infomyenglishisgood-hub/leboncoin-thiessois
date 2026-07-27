@@ -33,8 +33,9 @@ const listings = [
   ['Recherche apprenti mecanicien', "Garage a Thies recherche un apprenti motive. Formation assuree, petite indemnite mensuelle.", null, 0, 'emploi', 'thies', 'neuf'],
 ];
 
+// Les comptes de demonstration sont deja verifies : aucun SMS n'est envoye.
 const insertUser = db.prepare(
-  'INSERT OR IGNORE INTO users (name, phone, whatsapp, city, password_hash) VALUES (?, ?, ?, ?, ?)'
+  'INSERT OR IGNORE INTO users (name, phone, whatsapp, city, password_hash, phone_verified) VALUES (?, ?, ?, ?, ?, 1)'
 );
 users.forEach(([name, phone, city]) => insertUser.run(name, phone, phone, city, hash));
 
