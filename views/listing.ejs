@@ -53,7 +53,15 @@
     <aside class="detail-side">
       <div class="seller-box">
         <h2><%= t('seller') %></h2>
-        <p class="seller-name"><%= listing.seller_name %></p>
+        <p class="seller-name">
+          <%= listing.seller_name %>
+          <% if (listing.seller_verified) { %>
+            <span class="verified" title="<%= t('verify_badge') %>">✓</span>
+          <% } %>
+        </p>
+        <% if (listing.seller_verified) { %>
+          <p class="verified-line"><%= t('verify_badge') %></p>
+        <% } %>
         <p class="seller-meta"><%= cityLabel(listing.seller_city) %> · <%= t('member_since') %> <%= listing.seller_since.slice(0, 7) %></p>
 
         <% if (user && user.id === listing.user_id) { %>
@@ -88,6 +96,7 @@
           <li><%= t('safety_2') %></li>
           <li><%= t('safety_3') %></li>
           <li><%= t('safety_4') %></li>
+          <li><%= t('safety_5') %></li>
         </ul>
       </div>
     </aside>

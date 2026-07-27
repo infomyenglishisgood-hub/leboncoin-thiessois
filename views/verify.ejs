@@ -1,0 +1,49 @@
+<%- include('partials/header') %>
+
+<div class="wrap narrow">
+  <h1 class="page-title"><%= t('verify_title') %></h1>
+  <% if (typeof error !== 'undefined' && error) { %><div class="flash flash-error"><%= error %></div><% } %>
+
+  <div class="form">
+    <p class="verify-why"><%= t('verify_why') %></p>
+
+    <p class="verify-number">
+      <span class="verify-icon" aria-hidden="true">📱</span>
+      <strong><%= displayPhone(user.phone) %></strong>
+    </p>
+
+    <% if (!codeSent) { %>
+      <form method="post" action="/verification/envoyer">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <button class="btn btn-primary btn-lg btn-block" type="submit"><%= t('verify_send') %></button>
+      </form>
+    <% } else { %>
+      <p class="verify-sent"><%= t('verify_sent_to') %> <strong><%= displayPhone(user.phone) %></strong></p>
+
+      <% if (testMode && devCode) { %>
+        <div class="flash flash-ok"><%= t('verify_test_mode') %> <strong class="dev-code"><%= devCode %></strong></div>
+      <% } %>
+
+      <form method="post" action="/verification">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <label class="field">
+          <span class="label"><%= t('verify_code') %></span>
+          <input type="text" name="code" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+                 autocomplete="one-time-code" required autofocus class="code-input" placeholder="000000">
+        </label>
+        <button class="btn btn-primary btn-lg btn-block" type="submit"><%= t('verify_submit') %></button>
+      </form>
+
+      <p class="hint verify-help"><%= t('verify_no_sms') %></p>
+
+      <form method="post" action="/verification/envoyer">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <button class="btn btn-ghost btn-block" type="submit"><%= t('verify_resend') %></button>
+      </form>
+    <% } %>
+
+    <p class="verify-later"><a href="/"><%= t('verify_later') %></a></p>
+  </div>
+</div>
+
+<%- include('partials/footer') %>
